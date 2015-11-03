@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chatroom</title>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+  <script type ="text/javascript" src="/socket.io/socket.io.js"></script>
+  <script type ="text/javascript">
+  $(document).ready(function(){
+    var socket = io.connect();
+    var current_user;
+
+    var new_user = function(){
+      var name = prompt('Please enter your name to chat?');
+      socket.emit('page_load', {user: name});
+    }
+
+    new_user();
+
+    socket.on('existing_user', function(data){
+      $("#error").html(JSON.stringify(data.error))
+      new_user();
+    })
+
+    socket.on('load_messages', function(data){
+      console.log(data);
+      $("#error").html(" ") //resetting error message
+      current_user = data.current_user;
+      var messages = data.messages;
+      var messages_thread = "";
+      var all_users = "";
+      for(var i =0; i < messages.length; i++){
+        messages_thread += "<p>" + data.messages[i].message + "</p>";
+      }
+      $('#message_board').html(messages_thread);
+
+    })
+
+    socket.on('load_users', function(data){
+      var all_users = "";
+      for(var i =0; i < data.updated_users.length; i++){
+        all_users += "<p>" + data.updated_users[i] + "</p>";
+      }
+      $('#all_user').html(all_users);
+    })
+
+    $('#new_message').submit(function(){
+      socket.emit('new_message', {message: $('#message').val(), user: current_user})
+      return false;
+    })
+
+    socket.on('post_new_message', function(data){
+      var all_messages = " ";
+      for(var i =0; i < data.new_message.length; i++){
+        all_messages += "<p>" + data.new_message[i].message + "</p>";
+      }
+      $('#message_board').html(all_messages);
+      $('#message').val(" ");
+    })
+
+    socket.on('left', function(data){
+      $('#message_board').append("<p>" + data.user + ": " + data.left_message + "</p>");
+      $('#message').val(" ");
+    })
+
+    $('#leave_room').submit(function(){
+      socket.emit('leave_room', {user: current_user})
+      return false;
+    })
+
+    socket.on('post_leave_message', function(data){
+      var messages = " ";
+      for(var i =0; i < data.leave_message.length; i++){
+        messages += "<p>" + data.leave_message[i].message + "</p>";
+      }
+      $('#message_board').html(messages);
+      var cur_users = data.current_users;
+      var all_users = "";
+      for(var i =0; i < cur_users.length; i++){
+        all_users += "<p>" + data.current_users[i] +"</p>";
+      }
+      $('#all_user').html(all_users);
+    })
+
+    $(window).unload(function(){
+      socket.emit('exit', {user:current_user})
+    })
+  })
+
+  </script>
+</head>
+<style media="screen">
+body {
+  width: 850px;
+  height: auto;
+  margin: 0 auto;
+}
+#container {
+  width:800px;
+  min-height: 300px;
+  height: auto;
+  border: 1px solid black;
+  display:inline-block;
+  margin: 0 auto;
+  background-color: lightgray;
+}
+#message_board {
+  width: 400px;
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid black;
+  background-color: lightblue;
+
+}
+h2, h3{
+  text-align: center;
+}
+#message {
+  width: 300px;
+  background-color: lightgreen;
+}
+p {
+  margin-left: 10px;
+}
+form {
+  padding: 20px
+}
+#leave{
+  margin-left: 30px;
+  color:red;
+}
+
+#users {
+  width: 210px;
+  height: 400px;
+  border: 1px solid black;
+  overflow-y: scroll;
+  color:navy;
+}
+.row {
+  display: inline-block;
+  height: 500px;
+  margin-left: 50px;
+}
+#error{
+  font-size: 30px;
+  color:red;
+}
+#all_user {
+  background-color: white;
+}
+
+</style>
+<body>
+
+  <div id='container'>
+    <div id='error'></div>
+    <h2>Conversation Board</h2>
+    <div class='row'>
+
+      <div id='message_board'></div>
+      <form id='new_message' action="" method="post">
+        <input type="text" id='message' placeholder="Enter your message here">
+        <input type="submit" value="Send">
+      </form>
+      <form id="leave_room" action="index.html" method="post">
+        <input type="submit" value="Leave">
+      </form>
+    </div>
+
+    <div class='row'>
+      <div id="users">
+        <h3>Current People on Board</h3>
+        <hr>
+        <div id='all_user'></div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
